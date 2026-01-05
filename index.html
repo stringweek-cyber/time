@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Cycle - 생활 주기 관리자</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #F3F4F6;
+        }
+        .card-shadow {
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+        }
+        .progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+        /* Hide scrollbar for clean UI */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100 flex justify-center text-gray-800">
+
+    <div class="w-full max-w-md bg-white min-h-screen shadow-xl relative flex flex-col">
+        
+        <!-- Header -->
+        <header class="bg-indigo-600 text-white p-6 pt-10 rounded-b-[2rem] shadow-lg z-10 sticky top-0">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold flex items-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-6 h-6"></i>
+                        Life Cycle
+                    </h1>
+                    <p class="text-indigo-200 text-xs mt-1">반복되는 일상의 모든 기록</p>
+                </div>
+                <button onclick="openModal()" class="bg-white/20 hover:bg-white/30 p-2 rounded-full transition-colors backdrop-blur-sm">
+                    <i data-lucide="plus" class="w-6 h-6 text-white"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main List -->
+        <main class="flex-1 p-6 overflow-y-auto no-scrollbar pb-24 space-y-4" id="item-list">
+            <!-- Items will be injected here via JS -->
+            <div class="text-center text-gray-400 mt-20">
+                <i data-lucide="clipboard-list" class="w-12 h-12 mx-auto mb-3 opacity-30"></i>
+                <p>등록된 주기가 없습니다.<br>우측 상단 + 버튼을 눌러 추가하세요.</p>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl transform transition-all scale-100">
+            <h2 class="text-xl font-bold mb-6 text-gray-800 flex items-center gap-2">
+                <i data-lucide="calendar-plus" class="w-5 h-5 text-indigo-600"></i>
+                <span id="modal-title">새 주기 추가</span>
+            </h2>
+            
+            <input type="hidden" id="edit-id">
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">항목 이름</label>
+                    <input type="text" id="input-title" placeholder="예: 강아지 발톱 깎기" class="w-full border border-gray-200 bg-gray-50 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">주기 (일)</label>
+                        <input type="number" id="input-interval" placeholder="30" class="w-full border border-gray-200 bg-gray-50 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-center font-bold text-gray-700">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">마지막 수행일</label>
+                        <input type="date" id="input-last-date" class="w-full border border-gray-200 bg-gray-50 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal()" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold hover:bg-gray-200 transition-colors">취소</button>
+                <button onclick="saveItem()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-colors">저장</button>
+            </div>
+            
+            <button id="delete-btn" onclick="deleteItem()" class="hidden w-full mt-4 text-sm text-red-400 hover:text-red-600 underline">이 항목 삭제</button>
+        </div>
+    </div>
+
+    <!-- Custom Confirm/Alert Modal (Replaces native confirm/alert) -->
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl w-full max-w-xs p-6 shadow-2xl text-center transform transition-all scale-100">
+            <h3 class="text-lg font-bold text-gray-800 mb-2" id="confirm-title">확인</h3>
+            <p id="confirm-msg" class="text-gray-600 text-sm mb-6 whitespace-pre-line">정말 실행하시겠습니까?</p>
+            <div class="flex gap-3 justify-center">
+                <button id="confirm-cancel-btn" onclick="closeConfirm()" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition-colors">취소</button>
+                <button id="confirm-yes-btn" class="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-colors">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data Management ---
+        let items = [];
+
+        function init() {
+            lucide.createIcons();
+            loadData();
+            document.getElementById('input-last-date').valueAsDate = new Date();
+            renderList();
+        }
+
+        function loadData() {
+            const data = localStorage.getItem('lifeCycleData');
+            if (data) {
+                items = JSON.parse(data);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('lifeCycleData', JSON.stringify(items));
+            renderList();
+        }
+
+        // --- Custom Modal Logic ---
+        let confirmCallback = null;
+
+        function showConfirm(msg, callback, title = "확인") {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-msg').innerText = msg;
+            document.getElementById('confirm-cancel-btn').classList.remove('hidden');
+            confirmCallback = callback;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function showAlert(msg) {
+            document.getElementById('confirm-title').innerText = "알림";
+            document.getElementById('confirm-msg').innerText = msg;
+            document.getElementById('confirm-cancel-btn').classList.add('hidden'); // Hide cancel for alerts
+            confirmCallback = null;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirm() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            confirmCallback = null;
+        }
+
+        document.getElementById('confirm-yes-btn').onclick = function() {
+            if (confirmCallback) confirmCallback();
+            closeConfirm();
+        };
+
+        // --- Logic ---
+        function parseLocalDate(dateStr) {
+            if (!dateStr) return new Date();
+            const parts = dateStr.split('-');
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
+        function calculateStatus(lastDateStr, interval) {
+            const last = parseLocalDate(lastDateStr);
+            const next = new Date(last);
+            next.setDate(last.getDate() + parseInt(interval));
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const diffTime = next - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            const totalDuration = next - last;
+            const elapsed = today - last;
+            
+            let progress = 0;
+            if (totalDuration > 0) {
+                progress = (elapsed / totalDuration) * 100;
+            }
+            if (progress < 0) progress = 0;
+            if (progress > 100) progress = 100;
+
+            return {
+                diffDays, 
+                progress,
+                nextDateStr: next.toLocaleDateString()
+            };
+        }
+
+        function editItem(id) {
+            const item = items.find(i => i.id == id);
+            if (item) {
+                openModal(item);
+            }
+        }
+
+        function saveItem() {
+            const id = document.getElementById('edit-id').value;
+            const title = document.getElementById('input-title').value.trim();
+            const interval = parseInt(document.getElementById('input-interval').value);
+            const lastDate = document.getElementById('input-last-date').value;
+
+            if (!title || !interval || !lastDate) {
+                showAlert('모든 내용을 입력해주세요.');
+                return;
+            }
+
+            if (id) {
+                const index = items.findIndex(i => i.id == id);
+                if (index > -1) {
+                    items[index] = { ...items[index], title, interval, lastDate };
+                }
+            } else {
+                items.push({
+                    id: Date.now(),
+                    title,
+                    interval,
+                    lastDate
+                });
+            }
+
+            closeModal();
+            saveData();
+        }
+
+        function completeToday(event, id) {
+            // Stop propagation to prevent card click (edit)
+            if(event) event.stopPropagation();
+
+            const item = items.find(i => i.id == id);
+            if (!item) return;
+
+            showConfirm(`'${item.title}' 수행을 완료했나요?\n마지막 수행일이 오늘로 갱신됩니다.`, () => {
+                const today = new Date();
+                const y = today.getFullYear();
+                const m = String(today.getMonth() + 1).padStart(2, '0');
+                const d = String(today.getDate()).padStart(2, '0');
+                
+                const index = items.findIndex(i => i.id == id);
+                if (index > -1) {
+                    items[index].lastDate = `${y}-${m}-${d}`;
+                    saveData();
+                }
+            });
+        }
+
+        function deleteItem() {
+            const id = document.getElementById('edit-id').value;
+            showConfirm('정말 이 항목을 삭제하시겠습니까?', () => {
+                items = items.filter(i => i.id != id);
+                closeModal();
+                saveData();
+            }, "삭제 확인");
+        }
+
+        // --- UI Functions ---
+        function renderList() {
+            const container = document.getElementById('item-list');
+            container.innerHTML = '';
+            
+            if (items.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-400 mt-20 flex flex-col items-center">
+                        <div class="bg-gray-200 p-6 rounded-full mb-4">
+                            <i data-lucide="sparkles" class="w-8 h-8 text-gray-400"></i>
+                        </div>
+                        <p>등록된 주기가 없습니다.<br>우측 상단 + 버튼을 눌러 추가하세요.</p>
+                    </div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            // Sort: Overdue first (diffDays ascending), then created date
+            const processedItems = items.map(item => {
+                return { ...item, status: calculateStatus(item.lastDate, item.interval) };
+            }).sort((a, b) => {
+                if (a.status.diffDays !== b.status.diffDays) {
+                    return a.status.diffDays - b.status.diffDays;
+                }
+                return a.title.localeCompare(b.title);
+            });
+
+            processedItems.forEach(item => {
+                const { diffDays, progress, nextDateStr } = item.status;
+                const isOverdue = diffDays < 0;
+
+                let statusColor = "bg-indigo-600";
+                let statusText = "text-indigo-600";
+                let badgeClass = "bg-indigo-100 text-indigo-700";
+                let progressColor = "bg-indigo-500";
+                let dDayText = `D-${diffDays}`;
+
+                if (diffDays === 0) {
+                    dDayText = "D-Day";
+                    statusText = "text-orange-500";
+                    progressColor = "bg-orange-500";
+                    badgeClass = "bg-orange-100 text-orange-700 animate-pulse";
+                } else if (isOverdue) {
+                    dDayText = `D+${Math.abs(diffDays)}`;
+                    statusText = "text-red-500";
+                    progressColor = "bg-red-500";
+                    badgeClass = "bg-red-100 text-red-700";
+                } else {
+                    if (diffDays > 7) {
+                         statusText = "text-emerald-600";
+                         progressColor = "bg-emerald-500";
+                         badgeClass = "bg-emerald-100 text-emerald-700";
+                    }
+                }
+
+                const el = document.createElement('div');
+                el.className = "bg-white p-5 rounded-2xl card-shadow border border-gray-100 relative overflow-hidden group hover:border-indigo-100 transition-colors cursor-pointer";
+                el.onclick = (e) => {
+                    // Prevent click when clicking buttons
+                    if(e.target.closest('button')) return;
+                    openModal(item);
+                };
+
+                // Reverted to simple layout with bold date
+                el.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h3 class="font-bold text-lg text-gray-800">${item.title}</h3>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                주기 ${item.interval}일 · <span class="font-bold text-gray-400">예정 ${nextDateStr}</span>
+                            </p>
+                        </div>
+                        <span class="px-3 py-1 rounded-lg text-sm font-bold ${badgeClass} shrink-0 ml-2">
+                            ${dDayText}
+                        </span>
+                    </div>
+
+                    <div class="w-full bg-gray-100 rounded-full h-2.5 mb-4 overflow-hidden">
+                        <div class="h-2.5 rounded-full ${progressColor} progress-bar" style="width: ${progress}%"></div>
+                    </div>
+
+                    <div class="flex justify-between items-center mt-2">
+                        <span class="text-xs text-gray-400">마지막: ${item.lastDate}</span>
+                        <div class="flex gap-2">
+                            <button onclick="editItem(${item.id})" class="px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-700 rounded-lg text-sm font-medium transition-colors border border-gray-200">
+                                수정
+                            </button>
+                            <button onclick="completeToday(event, ${item.id})" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-indigo-50 text-gray-600 hover:text-indigo-600 rounded-lg text-sm font-medium transition-colors border border-gray-200 hover:border-indigo-200">
+                                <i data-lucide="check" class="w-4 h-4"></i> 완료
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+
+            lucide.createIcons();
+        }
+
+        // --- Modal Control ---
+        function openModal(item = null) {
+            const modal = document.getElementById('modal');
+            const deleteBtn = document.getElementById('delete-btn');
+            
+            modal.classList.remove('hidden');
+            
+            if (item) {
+                document.getElementById('modal-title').innerText = '주기 수정';
+                document.getElementById('edit-id').value = item.id;
+                document.getElementById('input-title').value = item.title;
+                document.getElementById('input-interval').value = item.interval;
+                document.getElementById('input-last-date').value = item.lastDate;
+                deleteBtn.classList.remove('hidden');
+            } else {
+                document.getElementById('modal-title').innerText = '새 주기 추가';
+                document.getElementById('edit-id').value = '';
+                document.getElementById('input-title').value = '';
+                document.getElementById('input-interval').value = '';
+                document.getElementById('input-last-date').valueAsDate = new Date();
+                deleteBtn.classList.add('hidden');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+        
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('modal')) closeModal();
+        });
+
+        // Init
+        init();
+
+    </script>
+</body>
+</html>
