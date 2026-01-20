@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Life Cycle - 생활 주기 관리자</title>
+    <title>Life Cycle - 생활 주기 관리자 (D+ 모드)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -35,7 +35,7 @@
                         <i data-lucide="refresh-cw" class="w-6 h-6"></i>
                         Life Cycle
                     </h1>
-                    <p class="text-indigo-200 text-xs mt-1">반복되는 일상의 모든 기록</p>
+                    <p class="text-indigo-200 text-xs mt-1">완료 후 경과일(D+) 기록</p>
                 </div>
                 <button onclick="openModal()" class="bg-white/20 hover:bg-white/30 p-2 rounded-full transition-colors backdrop-blur-sm">
                     <i data-lucide="plus" class="w-6 h-6 text-white"></i>
@@ -176,6 +176,9 @@
             const totalDuration = next - last;
             const elapsed = today - last;
             
+            // 경과일 계산 (D+ 표현을 위해 추가)
+            const elapsedDays = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+            
             let progress = 0;
             if (totalDuration > 0) {
                 progress = (elapsed / totalDuration) * 100;
@@ -184,7 +187,8 @@
             if (progress > 100) progress = 100;
 
             return {
-                diffDays, 
+                diffDays,     // 정렬 및 색상 로직용 (남은 날짜)
+                elapsedDays,  // 표시용 (경과한 날짜)
                 progress,
                 nextDateStr: next.toLocaleDateString()
             };
@@ -274,6 +278,7 @@
             }
 
             // Sort: Overdue first (diffDays ascending), then created date
+            // 정렬 로직은 그대로 유지 (급한 것이 상단에)
             const processedItems = items.map(item => {
                 return { ...item, status: calculateStatus(item.lastDate, item.interval) };
             }).sort((a, b) => {
@@ -284,26 +289,30 @@
             });
 
             processedItems.forEach(item => {
-                const { diffDays, progress, nextDateStr } = item.status;
+                // diffDays: 예정일까지 남은 날 (음수면 지각), elapsedDays: 완료 후 지난 날
+                const { diffDays, elapsedDays, progress, nextDateStr } = item.status;
                 const isOverdue = diffDays < 0;
 
                 let statusColor = "bg-indigo-600";
                 let statusText = "text-indigo-600";
                 let badgeClass = "bg-indigo-100 text-indigo-700";
                 let progressColor = "bg-indigo-500";
-                let dDayText = `D-${diffDays}`;
+                
+                // 표시 텍스트를 D+경과일로 변경
+                let dDayText = `D+${elapsedDays}`;
 
                 if (diffDays === 0) {
-                    dDayText = "D-Day";
+                    // D-Day (오늘이 예정일)
                     statusText = "text-orange-500";
                     progressColor = "bg-orange-500";
                     badgeClass = "bg-orange-100 text-orange-700 animate-pulse";
                 } else if (isOverdue) {
-                    dDayText = `D+${Math.abs(diffDays)}`;
+                    // 예정일 지남
                     statusText = "text-red-500";
                     progressColor = "bg-red-500";
                     badgeClass = "bg-red-100 text-red-700";
                 } else {
+                    // 여유 있음
                     if (diffDays > 7) {
                          statusText = "text-emerald-600";
                          progressColor = "bg-emerald-500";
@@ -314,12 +323,10 @@
                 const el = document.createElement('div');
                 el.className = "bg-white p-5 rounded-2xl card-shadow border border-gray-100 relative overflow-hidden group hover:border-indigo-100 transition-colors cursor-pointer";
                 el.onclick = (e) => {
-                    // Prevent click when clicking buttons
                     if(e.target.closest('button')) return;
                     openModal(item);
                 };
 
-                // Reverted to simple layout with bold date
                 el.innerHTML = `
                     <div class="flex justify-between items-start mb-3">
                         <div>
@@ -392,4 +399,5 @@
 
     </script>
 </body>
+
 </html>
